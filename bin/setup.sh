@@ -1,5 +1,11 @@
 #!/bin/sh
 
+base=$(pwd)
+
+repos="radical.gtod radical.utils radical.pilot radical.entk radical.analytics"
+
+
+
 # ------------------------------------------------------------------------------
 #
 usage(){
@@ -26,19 +32,55 @@ EOT
 
 # ------------------------------------------------------------------------------
 #
-checkout(){
-    repo=$1
+prepare_ve(){
 
-    if test -d "$repo"
+    dir="$1"
+
+    if ! test -d "$dir/ve"
     then
-        echo "Updating $repo"
-        cd "$repo"
-        git pull
-        cd ..
-    else
-        echo "Cloning $repo"
-        git clone "$repo"
+        python3 -m venv "$dir/ve"
     fi
+
+    . "$dir/ve/bin/activate"
+}
+
+
+# ------------------------------------------------------------------------------
+#
+checkout(){
+    dir="$1"
+    repo="$2"
+
+    cd "$dir"
+
+    if ! test -d "$repo"
+    then
+        git clone "https://github.com/radical-cybertools/$repo.git"
+    fi
+
+    cd "$repo"
+    git pull
+}
+
+
+# ------------------------------------------------------------------------------
+#
+install(){
+
+    dir="$1"
+    repo="$2"
+
+    cd "$dir/$repo"
+    pip install --upgrade .
+}
+
+
+# ------------------------------------------------------------------------------
+#
+check(){
+
+    radical-stack
+
 }
 
 
@@ -57,11 +99,17 @@ main(){
 
     cd "$dir"
 
-    checkout radical.gtod
-    checkout radical.utils
-    checkout radical.pilot
-    checkout radical.entk
-    checkout radical.analytics
+    prepare_ve "$dir"
+
+
+    for repo in $repos
+    do
+        checkout "$dir" "$repo"
+        install  "$dir" "$repo"
+    done
+
+    check "$dir"
+
 }
 
 
@@ -72,6 +120,8 @@ dir=$1
 test    "$dir" = "--help" && usage
 test    "$dir" = "-h"     && usage
 test -z "$dir"            && dir='./rct.tests'
+
+dir=$(readlink -f "$dir")
 
 main "$dir"
 
